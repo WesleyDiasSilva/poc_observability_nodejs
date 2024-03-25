@@ -1,39 +1,71 @@
-version: '3.8'
+version: "3"
+
 services:
-
-  elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:7.7.0
+  prometheus:
+    container_name: prometheus
+    image: prom/prometheus
     ports:
-      - "9200:9200"
-      - "9300:9300"
-    environment:
-      discovery.type: "single-node"
-      ES_JAVA_OPTS: "-Xms2g -Xmx2g"
-      xpack.monitoring.enabled: "true"
-
-  kibana:
-    image: docker.elastic.co/kibana/kibana:7.7.0
-    ports:
-      - "5601:5601"
-    environment:
-      ELASTICSEARCH_URL: http://elasticsearch:9200
-    depends_on:
-      - elasticsearch
-
-  logstash:
-    image: docker.elastic.co/logstash/logstash:7.15.0
-    container_name: logstash
+      - "9090:9090"
     volumes:
-      - ./infra/logstash/logstash.conf:/usr/share/logstash/pipeline/logstash.conf
-    ports:
-      - "5000:5000"
-    environment:
-      - "ES_HOST=elasticsearch"
-      - "ES_PORT=9200"
+      - ./prometheus:/etc/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+    networks:
+      - monitoring
     depends_on:
-      - elasticsearch
-      - kibana
+      - cadvisor
+
+  grafana:
+    container_name: grafana
+    image: grafana/grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./grafana:/etc/grafana
+      - grafana_data:/var/lib/grafana
+    networks:
+      - monitoring
+
+  node-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: node-app
+    ports:
+      - "4000:4000"
+    volumes:
+      - .:/app  # Mapeando o diretório local para o diretório do aplicativo dentro do contêiner
+    networks:
+      - monitoring
+    command: ["npm", "run", "dev"]  # Inicie o servidor com nodemon
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: cadvisor
+    ports:
+      - 8080:8080
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:rw
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/kmsg:/dev/kmsg
+    privileged: true
+    depends_on:
+      - redis
+    networks:
+      - monitoring
+
+  redis:
+    image: redis:latest
+    container_name: redis
+    ports:
+      - 6380:6380
+    networks:
+      - monitoring
 
 volumes:
-  esdata:
-    driver: local
+  grafana_data:
+
+networks:
+  monitoring:

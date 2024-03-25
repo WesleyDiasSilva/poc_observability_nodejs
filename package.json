@@ -12,7 +12,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "cors": "^2.8.5"
+    "cors": "^2.8.5",
+    "prom-client": "^15.1.0"
   },
   "devDependencies": {
     "@types/express": "^4.17.21",
